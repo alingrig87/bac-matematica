@@ -578,9 +578,13 @@ interface TextCursor {
 
 interface CanvasBoardProps {
   onOpenSubiecte?: () => void;
+  onOpenFormulas?: () => void;
 }
 
-export default function CanvasBoard({ onOpenSubiecte }: CanvasBoardProps = {}): JSX.Element {
+export default function CanvasBoard({
+  onOpenSubiecte,
+  onOpenFormulas,
+}: CanvasBoardProps = {}): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const isDrawingRef = useRef(false);
@@ -1690,6 +1694,14 @@ export default function CanvasBoard({ onOpenSubiecte }: CanvasBoardProps = {}): 
           }}
         >
           {[
+            {
+              label: '∑  Formule matematică',
+              action: () => {
+                setShowMenu(false);
+                onOpenFormulas?.();
+              },
+              danger: false,
+            },
             {
               label: '📚  Subiecte EN VIII',
               action: () => {

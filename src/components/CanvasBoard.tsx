@@ -483,6 +483,14 @@ const IconPdf = () => (
     <line x1="9" y1="17" x2="15" y2="17" />
   </svg>
 );
+const IconPaste = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...IC}>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    <line x1="12" y1="11" x2="12" y2="17" />
+    <line x1="9" y1="14" x2="15" y2="14" />
+  </svg>
+);
 
 // ─── Mini canvas icon for each geom shape ─────────────────────────────────────
 
@@ -870,6 +878,71 @@ export default function CanvasBoard({
       setPdfLoading(false);
     }
   }, []);
+
+  // ── paste image ──────────────────────────────────────────────────────────
+
+  const pasteImageBlob = useCallback((blob: Blob) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataURL = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current!;
+        const viewW = canvas.offsetWidth / scaleRef.current;
+        const viewH = canvas.offsetHeight / scaleRef.current;
+        const maxW = viewW * 0.85;
+        const sc = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
+        const w = Math.round(img.naturalWidth * sc);
+        const h = Math.round(img.naturalHeight * sc);
+        const x = panRef.current.x + (viewW - w) / 2;
+        const y = panRef.current.y + (viewH - h) / 2;
+        const id = crypto.randomUUID();
+        preloadImg(id, dataURL, () => {
+          redrawAll(
+            getCtx(),
+            itemsRef.current,
+            undefined,
+            undefined,
+            panRef.current,
+            scaleRef.current
+          );
+        });
+        commit([...itemsRef.current, { kind: 'image', id, dataURL, x, y, w, h }]);
+      };
+      img.src = dataURL;
+    };
+    reader.readAsDataURL(blob);
+  }, []);
+
+  const pasteFromClipboard = useCallback(async () => {
+    try {
+      const clipItems = await navigator.clipboard.read();
+      for (const item of clipItems) {
+        const imgType = item.types.find((t) => t.startsWith('image/'));
+        if (!imgType) continue;
+        const blob = await item.getType(imgType);
+        pasteImageBlob(blob);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Paste]', err);
+    }
+  }, [pasteImageBlob]);
+
+  // Ctrl+V / ⌘V — lipește imagine din clipboard
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imageItem = items.find((i) => i.type.startsWith('image/'));
+      if (!imageItem) return;
+      e.preventDefault();
+      const blob = imageItem.getAsFile();
+      if (blob) pasteImageBlob(blob);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [pasteImageBlob]);
 
   // ── zoom & pan controls ───────────────────────────────────────────────────
   function applyZoom(newScale: number, sx: number, sy: number) {
@@ -1459,6 +1532,9 @@ export default function CanvasBoard({
             <IconPdf />
           )}
         </PillBtn>
+        <PillBtn onClick={pasteFromClipboard} title="Lipește imagine din clipboard (Ctrl+V / ⌘V)">
+          <IconPaste />
+        </PillBtn>
         <PillBtn
           active={showMenu}
           onClick={() => {
@@ -2018,7 +2094,7 @@ export default function CanvasBoard({
           whiteSpace: 'nowrap',
         }}
       >
-        Ctrl+Z undo · Ctrl+Y redo · Esc închide panouri
+        Ctrl+Z undo · Ctrl+Y redo · Ctrl+V / ⌘V lipește imagine · Esc închide panouri
       </div>
     </div>
   );

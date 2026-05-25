@@ -579,8 +579,10 @@ function PillBtn({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface TextCursor {
-  x: number;
+  x: number; // world coords — for canvas drawing
   y: number;
+  sx: number; // screen coords — for input overlay (position: fixed)
+  sy: number;
   value: string;
 }
 
@@ -1024,7 +1026,8 @@ export default function CanvasBoard({
       pos = getPos(e);
 
     if (t === 'text') {
-      setTextCursor({ x: pos.x, y: pos.y, value: '' });
+      const sp = getScreenPos(e);
+      setTextCursor({ x: pos.x, y: pos.y, sx: sp.x, sy: sp.y, value: '' });
       return;
     }
 
@@ -1938,8 +1941,8 @@ export default function CanvasBoard({
           onBlur={() => commitText(textCursor.value)}
           style={{
             position: 'fixed',
-            left: textCursor.x,
-            top: textCursor.y,
+            left: textCursor.sx,
+            top: textCursor.sy,
             background: 'transparent',
             border: '1.5px dashed #3182ce',
             outline: 'none',
